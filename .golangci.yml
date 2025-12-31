@@ -1,0 +1,29 @@
+# .golangci.yml
+run:
+  timeout: 5m
+  tests: true
+
+linters:
+  enable:
+    - gofmt
+    - govet
+    - errcheck
+    - staticcheck
+    - gosimple
+    - ineffassign
+    - typecheck
+    - unused
+    - gosec
+    - revive
+    - misspell
+    - nakedret
+    - exportloopref
+    - unconvert
+    - unparam
+
+linters-settings:
+  govet:
+    check-shadowing: true
+  gosec:
+    excludes:
+      - G104 # We will handle errors explicitly but skip G104 (audit errors not checked) for scaffolding initial speed, will strictly check later.

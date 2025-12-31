@@ -1,0 +1,32 @@
+groups:
+  - name: airflow-exporter
+    rules:
+      - alert: AirflowExporterDown
+        expr: airflow_exporter_up == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Airflow Exporter is down"
+          description: "The Airflow metrics exporter has been down for more than 5 minutes."
+
+      - alert: AirflowExporterSlowScrape
+        expr: rate(airflow_exporter_scrape_duration_seconds_sum[5m]) / rate(airflow_exporter_scrape_duration_seconds_count[5m]) > 5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Airflow DB Scrape is slow"
+          description: "Average scrape duration is > 5s."
+
+      - alert: AirflowHighTaskFailureRate
+        expr: |
+          sum by (repository) (airflow_task_instance_state{state="failed"}) 
+          / 
+          sum by (repository) (airflow_task_instance_state) > 0.2
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High Task Failure Rate for {{ $labels.repository }}"
+          description: "More than 20% of tasks are in failed state for repository {{ $labels.repository }}."
