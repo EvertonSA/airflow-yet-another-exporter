@@ -22,6 +22,7 @@ type Collector struct {
 	taskInstanceState    metric.Int64Gauge
 	operatorFailures     metric.Int64Gauge
 	dagRunDurationAvg24h metric.Float64Gauge
+	dagActive            metric.Int64Gauge
 }
 
 func New(client *airflow.Client, logger *zap.Logger, meter metric.Meter) (*Collector, error) {
@@ -48,6 +49,9 @@ func New(client *airflow.Client, logger *zap.Logger, meter metric.Meter) (*Colle
 		return nil, err
 	}
 	if c.dagRunDurationAvg24h, err = meter.Float64Gauge("airflow_dag_run_duration_avg_24h", metric.WithDescription("Average duration of finished DAGs in the last 24h")); err != nil {
+		return nil, err
+	}
+	if c.dagActive, err = meter.Int64Gauge("airflow_dag_active", metric.WithDescription("Count of DAGs by active status (active/paused)")); err != nil {
 		return nil, err
 	}
 
