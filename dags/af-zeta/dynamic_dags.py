@@ -1,5 +1,5 @@
 from airflow.decorators import dag, task
-from airflow.operators.bash import BashOperator
+from airflow.providers.standard.operators.bash import BashOperator
 from datetime import datetime, timedelta
 import random
 import time

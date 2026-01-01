@@ -1,8 +1,8 @@
 
 from airflow import DAG
-from airflow.operators.bash import BashOperator
-from airflow.operators.python import PythonOperator
-from airflow.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.bash import BashOperator
+from airflow.providers.standard.operators.python import PythonOperator
+from airflow.providers.standard.operators.empty import EmptyOperator
 from datetime import datetime, timedelta
 import time
 import random
@@ -25,7 +25,7 @@ with DAG(
     'dag_gamma',
     default_args=default_args,
     description='Generated DAG dag_gamma',
-    schedule_interval=timedelta(hours=random.randint(1, 24)),
+    schedule=timedelta(hours=random.randint(1, 24)),
     catchup=False,
     tags=['generated', 'test'],
 ) as dag:
