@@ -34,20 +34,13 @@ def create_dag(dag_id, schedule_hours, default_args):
         def random_print():
             print(f"Executing task in {dag_id}")
 
-        @task.branch(task_id='potentially_fail')
-        def potentially_fail():
-            # Simulate a condition that might fail or lead to a specific path
-            if random.randint(1, 100) > 80:
-                raise Exception(f"Task in {dag_id} failed randomly!")
-            return 'end'
-
         t1 = BashOperator(
             task_id='bash_task',
             bash_command=f'echo "Running {dag_id}"',
         )
         
         # Define workflow
-        t1 >> random_print() >> potentially_fail()
+        t1 >> random_print()
 
     return generated_dag()
 

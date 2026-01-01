@@ -41,12 +41,6 @@ with DAG(
         task_id='python_task',
         python_callable=random_print,
     )
-
-    t3 = BashOperator(
-        task_id='potentially_fail',
-        bash_command='if [ $((RANDOM % 10)) -gt 7 ]; then exit 1; else exit 0; fi',
-    )
-
     end = EmptyOperator(task_id='end')
 
-    start >> t1 >> t2 >> t3 >> end
+    start >> t1 >> t2 >> end

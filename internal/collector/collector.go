@@ -23,13 +23,17 @@ type Collector struct {
 	operatorFailures     metric.Int64Gauge
 	dagRunDurationAvg24h metric.Float64Gauge
 	dagActive            metric.Int64Gauge
+
+	// State tracking
+	dagRunStateKeys map[attribute.Set]struct{}
 }
 
 func New(client *airflow.Client, logger *zap.Logger, meter metric.Meter) (*Collector, error) {
 	c := &Collector{
-		client: client,
-		logger: logger,
-		meter:  meter,
+		client:          client,
+		logger:          logger,
+		meter:           meter,
+		dagRunStateKeys: make(map[attribute.Set]struct{}),
 	}
 
 	var err error
@@ -95,12 +99,23 @@ func (c *Collector) Scrape(ctx context.Context) {
 		c.logger.Error("Failed to scrape DAG runs", zap.Error(err))
 		success = false
 	} else {
+
+		newKeys := make(map[attribute.Set]struct{})
 		for _, m := range dagStates {
-			c.dagRunState.Record(ctx, int64(m.Count), metric.WithAttributes(
+			attrs := attribute.NewSet(
 				attribute.String("repository", m.Repository),
 				attribute.String("state", m.Label),
-			))
+			)
+			c.dagRunState.Record(ctx, int64(m.Count), metric.WithAttributeSet(attrs))
+			newKeys[attrs] = struct{}{}
 		}
+		// Reset missing keys to 0
+		for k := range c.dagRunStateKeys {
+			if _, ok := newKeys[k]; !ok {
+				c.dagRunState.Record(ctx, 0, metric.WithAttributeSet(k))
+			}
+		}
+		c.dagRunStateKeys = newKeys
 	}
 
 	// 2. Task Instances

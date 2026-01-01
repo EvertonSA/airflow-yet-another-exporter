@@ -49,13 +49,19 @@ func (c *Client) GetDagRunStates(ctx context.Context) ([]MetricCount, error) {
 	for rows.Next() {
 		var r MetricCount
 		var repo *string
-		if err := rows.Scan(&repo, &r.Label, &r.Count); err != nil {
+		var label *string
+		if err := rows.Scan(&repo, &label, &r.Count); err != nil {
 			return nil, err
 		}
 		if repo != nil {
 			r.Repository = *repo
 		} else {
 			r.Repository = "unknown"
+		}
+		if label != nil {
+			r.Label = *label
+		} else {
+			r.Label = "none"
 		}
 		results = append(results, r)
 	}
@@ -83,13 +89,19 @@ func (c *Client) GetTaskInstanceStates(ctx context.Context) ([]MetricCount, erro
 	for rows.Next() {
 		var r MetricCount
 		var repo *string
-		if err := rows.Scan(&repo, &r.Label, &r.Count); err != nil {
+		var label *string
+		if err := rows.Scan(&repo, &label, &r.Count); err != nil {
 			return nil, err
 		}
 		if repo != nil {
 			r.Repository = *repo
 		} else {
 			r.Repository = "unknown"
+		}
+		if label != nil {
+			r.Label = *label
+		} else {
+			r.Label = "none"
 		}
 		results = append(results, r)
 	}
@@ -118,13 +130,19 @@ func (c *Client) GetOperatorFailures(ctx context.Context) ([]MetricCount, error)
 	for rows.Next() {
 		var r MetricCount
 		var repo *string
-		if err := rows.Scan(&repo, &r.Label, &r.Count); err != nil {
+		var label *string
+		if err := rows.Scan(&repo, &label, &r.Count); err != nil {
 			return nil, err
 		}
 		if repo != nil {
 			r.Repository = *repo
 		} else {
 			r.Repository = "unknown"
+		}
+		if label != nil {
+			r.Label = *label
+		} else {
+			r.Label = "none"
 		}
 		results = append(results, r)
 	}
