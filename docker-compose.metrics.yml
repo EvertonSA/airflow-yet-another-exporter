@@ -1,0 +1,64 @@
+version: '3.8'
+
+services:
+  # exporter:
+  #   build:
+  #     context: .
+  #   environment:
+  #     - AIRFLOW_EXPORTER_LOG_LEVEL=debug
+  #     - AIRFLOW_EXPORTER_OTEL_ENDPOINT=alloy:4317
+  #     - AIRFLOW_EXPORTER_SCRAPE_INTERVAL=30s
+  #   ports:
+  #     - "8080:8080"
+  #   networks:
+  #     - default
+
+  alloy:
+    image: grafana/alloy:latest
+    command: [
+      "run",
+      "--server.http.listen-addr=0.0.0.0:12345",
+      "--stability.level=experimental",
+      "/etc/alloy/config.alloy",
+    ]
+    volumes:
+      - ./config.alloy:/etc/alloy/config.alloy
+    ports:
+      - "12345:12345"
+      - "4317:4317"
+      - "4318:4318"
+    depends_on:
+      prometheus:
+        condition: service_started
+
+  prometheus:
+    image: prom/prometheus:latest
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--web.enable-remote-write-receiver'
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+
+  grafana:
+    image: grafana/grafana:latest
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+    volumes:
+      - ./datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml
+      - ./dashboards.yml:/etc/grafana/provisioning/dashboards/dashboards.yml
+      - ./ops:/var/lib/grafana/dashboards
+    ports:
+      - "3000:3000"
+    depends_on:
+      prometheus:
+        condition: service_started
+
+networks:
+  default:
+    driver: bridge

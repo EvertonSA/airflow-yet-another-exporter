@@ -93,23 +93,27 @@ func (c *Collector) Scrape(ctx context.Context) {
 	start := time.Now()
 	success := true
 
+	c.logger.Debug("scrape: start")
 	defer func() {
 		duration := time.Since(start).Seconds()
 		c.scrapeDuration.Record(ctx, duration)
 		if success {
 			c.up.Record(ctx, 1)
+			c.logger.Debug("scrape: completed successfully", zap.Float64("duration_seconds", duration))
 		} else {
 			c.up.Record(ctx, 0)
+			c.logger.Debug("scrape: completed with errors", zap.Float64("duration_seconds", duration))
 		}
 	}()
 
 	// 1. DAG Runs
+	c.logger.Debug("scrape: querying dag run states")
 	dagStates, err := c.client.GetDagRunStates(ctx)
 	if err != nil {
 		c.logger.Error("Failed to scrape DAG runs", zap.Error(err))
 		success = false
 	} else {
-
+		c.logger.Debug("scrape: dag run states fetched", zap.Int("count", len(dagStates)))
 		newKeys := make(map[attribute.Set]struct{})
 		for _, m := range dagStates {
 			attrs := attribute.NewSet(
@@ -129,11 +133,13 @@ func (c *Collector) Scrape(ctx context.Context) {
 	}
 
 	// 2. Task Instances
+	c.logger.Debug("scrape: querying task instance states")
 	taskStates, err := c.client.GetTaskInstanceStates(ctx)
 	if err != nil {
 		c.logger.Error("Failed to scrape Task instances", zap.Error(err))
 		success = false
 	} else {
+		c.logger.Debug("scrape: task instance states fetched", zap.Int("count", len(taskStates)))
 		newTaskKeys := make(map[attribute.Set]struct{})
 		for _, m := range taskStates {
 			attrs := attribute.NewSet(
@@ -153,11 +159,13 @@ func (c *Collector) Scrape(ctx context.Context) {
 	}
 
 	// 3. Operator Failures
+	c.logger.Debug("scrape: querying operator failures")
 	opFailures, err := c.client.GetOperatorFailures(ctx)
 	if err != nil {
 		c.logger.Error("Failed to scrape Operator failures", zap.Error(err))
 		success = false
 	} else {
+		c.logger.Debug("scrape: operator failures fetched", zap.Int("count", len(opFailures)))
 		for _, m := range opFailures {
 			c.operatorFailures.Record(ctx, int64(m.Count), metric.WithAttributes(
 				attribute.String("repository", m.Repository),
@@ -167,11 +175,13 @@ func (c *Collector) Scrape(ctx context.Context) {
 	}
 
 	// 4. Durations
+	c.logger.Debug("scrape: querying dag run durations")
 	durations, err := c.client.GetDagRunDurations(ctx)
 	if err != nil {
 		c.logger.Error("Failed to scrape durations", zap.Error(err))
 		success = false
 	} else {
+		c.logger.Debug("scrape: dag run durations fetched", zap.Int("count", len(durations)))
 		for _, m := range durations {
 			c.dagRunDurationAvg24h.Record(ctx, m.Duration, metric.WithAttributes(
 				attribute.String("repository", m.Repository),
@@ -180,11 +190,13 @@ func (c *Collector) Scrape(ctx context.Context) {
 	}
 
 	// 5. Task Durations
+	c.logger.Debug("scrape: querying task durations")
 	taskDurations, err := c.client.GetTaskDurations(ctx)
 	if err != nil {
 		c.logger.Error("Failed to scrape task durations", zap.Error(err))
 		success = false
 	} else {
+		c.logger.Debug("scrape: task durations fetched", zap.Int("count", len(taskDurations)))
 		for _, m := range taskDurations {
 			c.taskDurationAvg24h.Record(ctx, m.Duration, metric.WithAttributes(
 				attribute.String("repository", m.Repository),
@@ -193,11 +205,13 @@ func (c *Collector) Scrape(ctx context.Context) {
 	}
 
 	// 6. Task Queue Wait
+	c.logger.Debug("scrape: querying task queue wait durations")
 	taskWaits, err := c.client.GetTaskQueueWait(ctx)
 	if err != nil {
 		c.logger.Error("Failed to scrape task queue wait", zap.Error(err))
 		success = false
 	} else {
+		c.logger.Debug("scrape: task queue wait durations fetched", zap.Int("count", len(taskWaits)))
 		for _, m := range taskWaits {
 			c.taskQueueWaitAvg24h.Record(ctx, m.Duration, metric.WithAttributes(
 				attribute.String("repository", m.Repository),
