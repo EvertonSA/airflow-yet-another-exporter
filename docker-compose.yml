@@ -114,6 +114,7 @@ services:
       - AIRFLOW_EXPORTER_DATABASE_CONNECTION_STRING=postgres://airflow:airflow_password@postgres:5432/airflow?sslmode=disable
       - AIRFLOW_EXPORTER_LOG_LEVEL=debug
       - AIRFLOW_EXPORTER_OTEL_ENDPOINT=alloy:4317
+      - AIRFLOW_EXPORTER_SCRAPE_INTERVAL=30s
     ports:
       - "8080:8080"
     depends_on:

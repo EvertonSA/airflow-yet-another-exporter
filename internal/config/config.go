@@ -11,6 +11,7 @@ type Config struct {
 	Database DatabaseConfig `mapstructure:"database"`
 	Log      LogConfig      `mapstructure:"log"`
 	OTel     OTelConfig     `mapstructure:"otel"`
+	Scrape   ScrapeConfig   `mapstructure:"scrape"`
 }
 
 type ServerConfig struct {
@@ -29,6 +30,10 @@ type OTelConfig struct {
 	Endpoint string `mapstructure:"endpoint"`
 }
 
+type ScrapeConfig struct {
+	Interval string `mapstructure:"interval"`
+}
+
 func Load() (*Config, error) {
 	v := viper.New()
 
@@ -37,6 +42,7 @@ func Load() (*Config, error) {
 	v.SetDefault("log.level", "info")
 	v.SetDefault("otel.endpoint", "localhost:4317")
 	v.SetDefault("database.connection_string", "") // Required for Viper to pick up env var for nested struct
+	v.SetDefault("scrape.interval", "30s")
 
 	// Environment Variables
 	v.SetEnvPrefix("AIRFLOW_EXPORTER")

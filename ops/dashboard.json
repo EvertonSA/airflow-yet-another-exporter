@@ -149,6 +149,7 @@
         }
       ],
       "title": "Exporter Status",
+      "description": "Indicates if the exporter is successfully scraping the Airflow database. RED (Down) means metrics are stale and no new data is being collected.",
       "type": "stat"
     },
     {
@@ -196,6 +197,7 @@
         }
       ],
       "title": "Scrape Latency (Avg)",
+      "description": "Average time taken to query the Airflow database. High latency (>5s) suggests database load issues or inefficient queries.",
       "type": "stat"
     },
     {
@@ -237,6 +239,51 @@
         }
       ],
       "title": "Total Running DAGs (Global)",
+      "description": "The absolute number of DAGs currently executing across the entire system. Use this to gauge overall platform concurrency.",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 18,
+        "y": 1
+      },
+      "id": 10,
+      "targets": [
+        {
+          "expr": "increase(airflow_exporter_scrape_duration_seconds_count[1h])",
+          "refId": "A",
+          "legendFormat": "Scrapes/h"
+        }
+      ],
+      "title": "Scrapes per Hour",
+      "description": "Rate of successful data collections. A drop represents intermittent availability or connectivity issues.",
       "type": "stat"
     },
     {
@@ -256,51 +303,65 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 1
-              }
-            ]
-          },
-          "mappings": []
-        }
-      },
       "gridPos": {
         "h": 6,
-        "w": 12,
+        "w": 6,
         "x": 0,
         "y": 6
       },
-      "id": 3,
+      "id": 11,
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "scaleDistribution": {
+              "type": "log",
+              "log": 2
+            }
+          }
+        }
+      },
       "targets": [
         {
-          "expr": "sum by (state) (airflow_dag_run_state{repository=~\"$repository\"})",
+          "expr": "max by (repository) (airflow_dag_run_duration_avg_24h)",
           "refId": "A",
-          "legendFormat": "{{state}}"
+          "legendFormat": "{{repository}}"
         }
       ],
-      "title": "Global DAG Run States",
-      "type": "piechart",
-      "options": {
-        "pieType": "donut",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
+      "title": "Latency (Max Avg Duration)",
+      "description": "GOLDEN SIGNAL: LATENCY. The average wall-clock time DAGs take to complete (last 24h). Rising trends indicate performance degradation or data delivery delays.",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 6,
+        "y": 6
+      },
+      "id": 12,
+      "targets": [
+        {
+          "expr": "sum by (repository) (airflow_task_instance_state{state=\"running\"})",
+          "refId": "A",
+          "legendFormat": "{{repository}}"
+        }
+      ],
+      "title": "Traffic (Concurrency)",
+      "description": "GOLDEN SIGNAL: TRAFFIC. The number of active tasks running right now per repository. Shows which repositories are consuming your slot capacity.",
+      "type": "timeseries",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            }
+          }
         }
       }
     },
@@ -309,45 +370,46 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 1
-              }
-            ]
-          }
-        }
-      },
       "gridPos": {
         "h": 6,
-        "w": 12,
+        "w": 6,
         "x": 12,
         "y": 6
       },
-      "id": 4,
+      "id": 13,
       "targets": [
         {
-          "expr": "sum by (state) (airflow_task_instance_state{repository=~\"$repository\"})",
+          "expr": "sum by (repository) (delta(airflow_task_operator_failures{repository=~\"$repository\"}[$__range]))",
           "refId": "A",
-          "legendFormat": "{{state}}"
+          "legendFormat": "{{repository}}"
         }
       ],
-      "title": "Global Task Instance States",
-      "type": "piechart",
-      "options": {
-        "pieType": "donut"
-      }
+      "title": "Errors (Total Failures in Range)",
+      "description": "GOLDEN SIGNAL: ERRORS. The total count of task failures over the selected time range. Spikes usually indicate broken code, bad data, or external system outages.",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 18,
+        "y": 6
+      },
+      "id": 14,
+      "targets": [
+        {
+          "expr": "sum by (repository) (airflow_task_instance_state{state=\"queued\"})",
+          "refId": "A",
+          "legendFormat": "{{repository}}"
+        }
+      ],
+      "title": "Saturation (Queue Depth)",
+      "description": "GOLDEN SIGNAL: SATURATION. The number of tasks in 'queued' state waiting for a worker slot. Persistent queue depth means you need more workers or concurrency slots.",
+      "type": "timeseries"
     },
     {
       "gridPos": {
@@ -382,13 +444,17 @@
         {
           "expr": "topk(10, sum by (operator) (airflow_task_operator_failures{repository=~\"$repository\"}))",
           "refId": "A",
-          "legendFormat": "{{operator}}"
+          "legendFormat": "{{operator}}",
+          "instant": true
         }
       ],
       "title": "Top 10 Failing Operator Types",
-      "type": "barchart",
+      "description": "Breakdown of failures by task type (e.g., Python, Bash, Sensor). Helps identify if a specific subsystem (like Kubernetes or a generic script) is the root cause.",
+      "type": "bargauge",
       "options": {
-        "orientation": "horizontal"
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "showUnfilled": true
       }
     },
     {
@@ -432,13 +498,17 @@
         {
           "expr": "topk(10, max by (repository) (airflow_dag_run_duration_avg_24h{repository=~\"$repository\"}))",
           "refId": "A",
-          "legendFormat": "{{repository}}"
+          "legendFormat": "{{repository}}",
+          "instant": true
         }
       ],
       "title": "Longest Running Repositories (Avg 24h)",
-      "type": "barchart",
+      "description": "Ranking of slow repositories. Unlike the graph, this quickly identifies the absolute slowest workflows in your system.",
+      "type": "bargauge",
       "options": {
-        "orientation": "horizontal"
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "showUnfilled": true
       }
     },
     {
@@ -447,6 +517,74 @@
         "w": 24,
         "x": 0,
         "y": 21
+      },
+      "id": 100,
+      "title": "Task Performance (24h Avg)",
+      "type": "row",
+      "collapsed": false
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        }
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 12,
+        "x": 0,
+        "y": 22
+      },
+      "id": 15,
+      "targets": [
+        {
+          "expr": "max by (repository) (airflow_task_duration_avg_24h)",
+          "legendFormat": "{{repository}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Avg Task Duration (24h)",
+      "description": "Pure Execution Time (24h Average). The average time tasks of this repository spent actually running (execution state) over the last 24 hours. Increases here indicate the code is slow or data volume has increased.",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        }
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 12,
+        "x": 12,
+        "y": 22
+      },
+      "id": 16,
+      "targets": [
+        {
+          "expr": "max by (repository) (airflow_task_queue_wait_duration_avg_24h)",
+          "legendFormat": "{{repository}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Avg Queue Wait Time (24h)",
+      "description": "Infrastructure Wait Time (24h Average). The average time tasks of this repository waited for a slot over the last 24 hours. Increases here indicate infrastructure starvation (not enough workers).",
+      "type": "timeseries"
+    },
+    {
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 28
       },
       "id": 96,
       "title": "Detailed Breakdown",
@@ -462,7 +600,7 @@
         "h": 10,
         "w": 24,
         "x": 0,
-        "y": 22
+        "y": 29
       },
       "id": 7,
       "title": "Repository Statistics",
@@ -515,4 +653,3 @@
     }
   ]
 }
-```

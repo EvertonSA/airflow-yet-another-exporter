@@ -15,9 +15,9 @@ import (
 	"github.com/everton/airflow-exporter/internal/db"
 	"github.com/everton/airflow-exporter/internal/telemetry"
 	"github.com/labstack/echo/v4"
-	"go.opentelemetry.io/otel"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/spf13/cobra"
+	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 )
 
@@ -76,8 +76,8 @@ func runServer() {
 	// 4. Database
 	dbPool, err := db.Connect(ctx, cfg.Database.ConnectionString)
 	if err != nil {
-		// Just log error but don't crash yet, maybe DB comes up later? 
-		// Actually for an exporter it's better to crash or handle retry. 
+		// Just log error but don't crash yet, maybe DB comes up later?
+		// Actually for an exporter it's better to crash or handle retry.
 		// We'll Log Fatal as Golden Path suggests "Fail Fast".
 		logger.Fatal("Failed to connect to DB", zap.Error(err))
 	}
@@ -92,7 +92,12 @@ func runServer() {
 	}
 
 	// Start Collector in background
-	go col.Start(ctx, 30*time.Second) // TODO: Make interval configurable
+	interval, err := time.ParseDuration(cfg.Scrape.Interval)
+	if err != nil {
+		logger.Error("Failed to parse scrape interval, using default 30s", zap.String("interval", cfg.Scrape.Interval), zap.Error(err))
+		interval = 30 * time.Second
+	}
+	go col.Start(ctx, interval)
 
 	// 6. Web Server (Echo)
 	e := echo.New()
@@ -104,7 +109,6 @@ func runServer() {
 	}))
 
 	e.GET("/health", func(c echo.Context) error {
-		// TODO: Check DB ping here for deep health check?
 		return c.JSON(http.StatusOK, map[string]string{"status": "ok"})
 	})
 

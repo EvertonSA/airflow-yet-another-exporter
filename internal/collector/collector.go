@@ -22,18 +22,22 @@ type Collector struct {
 	taskInstanceState    metric.Int64Gauge
 	operatorFailures     metric.Int64Gauge
 	dagRunDurationAvg24h metric.Float64Gauge
+	taskDurationAvg24h   metric.Float64Gauge
+	taskQueueWaitAvg24h  metric.Float64Gauge
 	dagActive            metric.Int64Gauge
 
 	// State tracking
-	dagRunStateKeys map[attribute.Set]struct{}
+	dagRunStateKeys       map[attribute.Set]struct{}
+	taskInstanceStateKeys map[attribute.Set]struct{}
 }
 
 func New(client *airflow.Client, logger *zap.Logger, meter metric.Meter) (*Collector, error) {
 	c := &Collector{
-		client:          client,
-		logger:          logger,
-		meter:           meter,
-		dagRunStateKeys: make(map[attribute.Set]struct{}),
+		client:                client,
+		logger:                logger,
+		meter:                 meter,
+		dagRunStateKeys:       make(map[attribute.Set]struct{}),
+		taskInstanceStateKeys: make(map[attribute.Set]struct{}),
 	}
 
 	var err error
@@ -56,6 +60,12 @@ func New(client *airflow.Client, logger *zap.Logger, meter metric.Meter) (*Colle
 		return nil, err
 	}
 	if c.dagActive, err = meter.Int64Gauge("airflow_dag_active", metric.WithDescription("Count of DAGs by active status (active/paused)")); err != nil {
+		return nil, err
+	}
+	if c.taskDurationAvg24h, err = meter.Float64Gauge("airflow_task_duration_avg_24h", metric.WithDescription("Average duration of finished Tasks in the last 24h")); err != nil {
+		return nil, err
+	}
+	if c.taskQueueWaitAvg24h, err = meter.Float64Gauge("airflow_task_queue_wait_duration_avg_24h", metric.WithDescription("Average start delay of Tasks in the last 24h")); err != nil {
 		return nil, err
 	}
 
@@ -124,12 +134,22 @@ func (c *Collector) Scrape(ctx context.Context) {
 		c.logger.Error("Failed to scrape Task instances", zap.Error(err))
 		success = false
 	} else {
+		newTaskKeys := make(map[attribute.Set]struct{})
 		for _, m := range taskStates {
-			c.taskInstanceState.Record(ctx, int64(m.Count), metric.WithAttributes(
+			attrs := attribute.NewSet(
 				attribute.String("repository", m.Repository),
 				attribute.String("state", m.Label),
-			))
+			)
+			c.taskInstanceState.Record(ctx, int64(m.Count), metric.WithAttributeSet(attrs))
+			newTaskKeys[attrs] = struct{}{}
 		}
+		// Reset missing keys to 0
+		for k := range c.taskInstanceStateKeys {
+			if _, ok := newTaskKeys[k]; !ok {
+				c.taskInstanceState.Record(ctx, 0, metric.WithAttributeSet(k))
+			}
+		}
+		c.taskInstanceStateKeys = newTaskKeys
 	}
 
 	// 3. Operator Failures
@@ -154,6 +174,32 @@ func (c *Collector) Scrape(ctx context.Context) {
 	} else {
 		for _, m := range durations {
 			c.dagRunDurationAvg24h.Record(ctx, m.Duration, metric.WithAttributes(
+				attribute.String("repository", m.Repository),
+			))
+		}
+	}
+
+	// 5. Task Durations
+	taskDurations, err := c.client.GetTaskDurations(ctx)
+	if err != nil {
+		c.logger.Error("Failed to scrape task durations", zap.Error(err))
+		success = false
+	} else {
+		for _, m := range taskDurations {
+			c.taskDurationAvg24h.Record(ctx, m.Duration, metric.WithAttributes(
+				attribute.String("repository", m.Repository),
+			))
+		}
+	}
+
+	// 6. Task Queue Wait
+	taskWaits, err := c.client.GetTaskQueueWait(ctx)
+	if err != nil {
+		c.logger.Error("Failed to scrape task queue wait", zap.Error(err))
+		success = false
+	} else {
+		for _, m := range taskWaits {
+			c.taskQueueWaitAvg24h.Record(ctx, m.Duration, metric.WithAttributes(
 				attribute.String("repository", m.Repository),
 			))
 		}

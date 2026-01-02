@@ -4,11 +4,11 @@ from datetime import datetime, timedelta
 import random
 import time
 
-@task
-def random_failure():
-    time.sleep(random.randint(1, 5))
-    if random.random() < 0.3:
-        raise Exception("Random failure for metrics testing!")
+# @task
+# def random_failure():
+#     time.sleep(random.randint(1, 5))
+#     if random.random() < 0.3:
+#         raise Exception("Random failure for metrics testing!")
 
 default_args = {
     'owner': 'airflow',
@@ -40,8 +40,8 @@ def example_metrics_dag():
         bash_command='sleep 5',
     )
     
-    t3 = random_failure()
+    # t3 = random_failure()
 
-    t1 >> [t2, t3]
+    t1 >> t2
 
 example_metrics_dag()

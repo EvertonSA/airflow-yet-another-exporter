@@ -183,3 +183,73 @@ func (c *Client) GetDagRunDurations(ctx context.Context) ([]DurationMetric, erro
 	}
 	return results, nil
 }
+
+// GetTaskDurations calculates avg duration of finished tasks in last 24h
+func (c *Client) GetTaskDurations(ctx context.Context) ([]DurationMetric, error) {
+	sql := `
+		SELECT 
+			SUBSTRING(d.fileloc FROM '/opt/airflow/dags/([^/]+)/') as repository,
+			AVG(EXTRACT(EPOCH FROM (ti.end_date - ti.start_date)))
+		FROM task_instance ti
+		JOIN dag d ON ti.dag_id = d.dag_id
+		WHERE ti.state IN ('success', 'failed') 
+		  AND ti.end_date > NOW() - INTERVAL '24 hours'
+		GROUP BY 1
+	`
+	rows, err := c.db.Query(ctx, sql)
+	if err != nil {
+		return nil, fmt.Errorf("query failed: %w", err)
+	}
+	defer rows.Close()
+
+	var results []DurationMetric
+	for rows.Next() {
+		var r DurationMetric
+		var repo *string
+		if err := rows.Scan(&repo, &r.Duration); err != nil {
+			return nil, err
+		}
+		if repo != nil {
+			r.Repository = *repo
+		} else {
+			r.Repository = "unknown"
+		}
+		results = append(results, r)
+	}
+	return results, nil
+}
+
+// GetTaskQueueWait calculates avg queue wait time for tasks started in last 24h
+func (c *Client) GetTaskQueueWait(ctx context.Context) ([]DurationMetric, error) {
+	sql := `
+		SELECT 
+			SUBSTRING(d.fileloc FROM '/opt/airflow/dags/([^/]+)/') as repository,
+			AVG(GREATEST(EXTRACT(EPOCH FROM (ti.start_date - ti.queued_dttm)), 0))
+		FROM task_instance ti
+		JOIN dag d ON ti.dag_id = d.dag_id
+		WHERE ti.start_date > NOW() - INTERVAL '24 hours'
+		  AND ti.queued_dttm IS NOT NULL
+		GROUP BY 1
+	`
+	rows, err := c.db.Query(ctx, sql)
+	if err != nil {
+		return nil, fmt.Errorf("query failed: %w", err)
+	}
+	defer rows.Close()
+
+	var results []DurationMetric
+	for rows.Next() {
+		var r DurationMetric
+		var repo *string
+		if err := rows.Scan(&repo, &r.Duration); err != nil {
+			return nil, err
+		}
+		if repo != nil {
+			r.Repository = *repo
+		} else {
+			r.Repository = "unknown"
+		}
+		results = append(results, r)
+	}
+	return results, nil
+}
