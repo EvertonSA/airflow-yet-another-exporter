@@ -1,2 +1,5 @@
 .agent/skills/golang/SKILL.md
-dags/__pycache__/management_backfill_dag.cpython-310.pyc
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class

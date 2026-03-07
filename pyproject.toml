@@ -1,0 +1,19 @@
+[project]
+name = "airflow-yet-another-exporter"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "apache-airflow>=2.8.0",
+    "holidays>=0.92",
+    "pendulum>=3.2.0",
+]
+
+[dependency-groups]
+dev = [
+    "black>=26.3.0",
+    "flake8>=7.3.0",
+    "pylint>=4.0.5",
+    "ruff>=0.15.5",
+]
