@@ -26,6 +26,12 @@ type DurationMetric struct {
 	Duration   float64
 }
 
+type PoolMetric struct {
+	Pool       string
+	TotalSlots int
+	UsedSlots  int
+}
+
 // GetDagRunStates counts dag runs per state and repository
 func (c *Client) GetDagRunStates(ctx context.Context) ([]MetricCount, error) {
 	// Assumption: fileloc contains "/opt/airflow/dags/<repository>/..."
@@ -249,6 +255,146 @@ func (c *Client) GetTaskQueueWait(ctx context.Context) ([]DurationMetric, error)
 		} else {
 			r.Repository = "unknown"
 		}
+		results = append(results, r)
+	}
+	return results, nil
+}
+
+// GetDagParseDurations calculates the average DAG parse duration per repository
+func (c *Client) GetDagParseDurations(ctx context.Context) ([]DurationMetric, error) {
+	sql := `
+		SELECT 
+			SUBSTRING(fileloc FROM '/opt/airflow/dags/([^/]+)/') as repository,
+			AVG(last_parse_duration)
+		FROM dag
+		WHERE last_parse_duration IS NOT NULL
+		GROUP BY 1
+	`
+	rows, err := c.db.Query(ctx, sql)
+	if err != nil {
+		return nil, fmt.Errorf("query failed: %w", err)
+	}
+	defer rows.Close()
+
+	var results []DurationMetric
+	for rows.Next() {
+		var r DurationMetric
+		var repo *string
+		if err := rows.Scan(&repo, &r.Duration); err != nil {
+			return nil, err
+		}
+		if repo != nil {
+			r.Repository = *repo
+		} else {
+			r.Repository = "unknown"
+		}
+		results = append(results, r)
+	}
+	return results, nil
+}
+
+// GetPoolMetrics calculates total and used slots per pool
+func (c *Client) GetPoolMetrics(ctx context.Context) ([]PoolMetric, error) {
+	sql := `
+		SELECT
+			sp.pool,
+			sp.slots,
+			COALESCE(SUM(ti.pool_slots), 0)
+		FROM slot_pool sp
+		LEFT JOIN task_instance ti ON sp.pool = ti.pool AND ti.state IN ('running', 'queued')
+		GROUP BY sp.pool, sp.slots
+	`
+	rows, err := c.db.Query(ctx, sql)
+	if err != nil {
+		return nil, fmt.Errorf("query failed: %w", err)
+	}
+	defer rows.Close()
+
+	var results []PoolMetric
+	for rows.Next() {
+		var r PoolMetric
+		var pool *string
+		if err := rows.Scan(&pool, &r.TotalSlots, &r.UsedSlots); err != nil {
+			return nil, err
+		}
+		if pool != nil {
+			r.Pool = *pool
+		} else {
+			r.Pool = "unknown"
+		}
+		results = append(results, r)
+	}
+	return results, nil
+}
+
+// GetImportErrors counts the import errors per repository
+func (c *Client) GetImportErrors(ctx context.Context) ([]MetricCount, error) {
+	sql := `
+		SELECT 
+			SUBSTRING(filename FROM '/opt/airflow/dags/([^/]+)/') as repository,
+			COUNT(*)
+		FROM import_error
+		GROUP BY 1
+	`
+	rows, err := c.db.Query(ctx, sql)
+	if err != nil {
+		return nil, fmt.Errorf("query failed: %w", err)
+	}
+	defer rows.Close()
+
+	var results []MetricCount
+	for rows.Next() {
+		var r MetricCount
+		var repo *string
+		if err := rows.Scan(&repo, &r.Count); err != nil {
+			return nil, err
+		}
+		if repo != nil {
+			r.Repository = *repo
+		} else {
+			r.Repository = "unknown"
+		}
+		r.Label = "import_error"
+		results = append(results, r)
+	}
+	return results, nil
+}
+
+// GetZombieTasks counts potentially zombied tasks per repository
+func (c *Client) GetZombieTasks(ctx context.Context) ([]MetricCount, error) {
+	// A basic heuristic for Airflow 3 zombie tasks: running but no heartbeat in the last 5 minutes
+	sql := `
+		SELECT 
+			SUBSTRING(d.fileloc FROM '/opt/airflow/dags/([^/]+)/') as repository,
+			COUNT(*) 
+		FROM task_instance ti
+		JOIN dag d ON ti.dag_id = d.dag_id
+		WHERE ti.state = 'running' 
+		  AND (
+			ti.last_heartbeat_at < NOW() - INTERVAL '5 minutes' 
+			OR (ti.last_heartbeat_at IS NULL AND ti.start_date < NOW() - INTERVAL '5 minutes')
+		  )
+		GROUP BY 1
+	`
+	rows, err := c.db.Query(ctx, sql)
+	if err != nil {
+		return nil, fmt.Errorf("query failed: %w", err)
+	}
+	defer rows.Close()
+
+	var results []MetricCount
+	for rows.Next() {
+		var r MetricCount
+		var repo *string
+		if err := rows.Scan(&repo, &r.Count); err != nil {
+			return nil, err
+		}
+		if repo != nil {
+			r.Repository = *repo
+		} else {
+			r.Repository = "unknown"
+		}
+		r.Label = "zombie"
 		results = append(results, r)
 	}
 	return results, nil

@@ -25,6 +25,11 @@ type Collector struct {
 	taskDurationAvg24h   metric.Float64Gauge
 	taskQueueWaitAvg24h  metric.Float64Gauge
 	dagActive            metric.Int64Gauge
+	dagParseDurationAvg metric.Float64Gauge
+	poolCapacityTotal   metric.Int64Gauge
+	poolCapacityUsed    metric.Int64Gauge
+	dagImportErrors     metric.Int64Gauge
+	zombieTasks         metric.Int64Gauge
 
 	// State tracking
 	dagRunStateKeys       map[attribute.Set]struct{}
@@ -68,13 +73,31 @@ func New(client *airflow.Client, logger *zap.Logger, meter metric.Meter) (*Colle
 	if c.taskQueueWaitAvg24h, err = meter.Float64Gauge("airflow_task_queue_wait_duration_avg_24h", metric.WithDescription("Average start delay of Tasks in the last 24h")); err != nil {
 		return nil, err
 	}
+	if c.dagParseDurationAvg, err = meter.Float64Gauge("airflow_dag_parse_duration_seconds", metric.WithDescription("Average parse duration per DAG in seconds")); err != nil {
+		return nil, err
+	}
+	if c.poolCapacityTotal, err = meter.Int64Gauge("airflow_pool_capacity_total", metric.WithDescription("Total number of slots available in a pool")); err != nil {
+		return nil, err
+	}
+	if c.poolCapacityUsed, err = meter.Int64Gauge("airflow_pool_capacity_used", metric.WithDescription("Number of slots used by running and queued tasks in a pool")); err != nil {
+		return nil, err
+	}
+	if c.dagImportErrors, err = meter.Int64Gauge("airflow_dag_import_errors_total", metric.WithDescription("Total count of DAG import errors")); err != nil {
+		return nil, err
+	}
+	if c.zombieTasks, err = meter.Int64Gauge("airflow_zombie_tasks_total", metric.WithDescription("Total count of zombie tasks")); err != nil {
+		return nil, err
+	}
 
 	return c, nil
 }
 
 func (c *Collector) Start(ctx context.Context, interval time.Duration) {
-	ticker := time.NewTicker(interval)
-	defer ticker.Stop()
+	scrapeTicker := time.NewTicker(interval)
+	defer scrapeTicker.Stop()
+
+	aliveTicker := time.NewTicker(5 * time.Minute)
+	defer aliveTicker.Stop()
 
 	// Initial Scrape
 	c.Scrape(ctx)
@@ -83,8 +106,10 @@ func (c *Collector) Start(ctx context.Context, interval time.Duration) {
 		select {
 		case <-ctx.Done():
 			return
-		case <-ticker.C:
+		case <-scrapeTicker.C:
 			c.Scrape(ctx)
+		case <-aliveTicker.C:
+			c.logger.Info("i am alive")
 		}
 	}
 }
@@ -214,6 +239,61 @@ func (c *Collector) Scrape(ctx context.Context) {
 		c.logger.Debug("scrape: task queue wait durations fetched", zap.Int("count", len(taskWaits)))
 		for _, m := range taskWaits {
 			c.taskQueueWaitAvg24h.Record(ctx, m.Duration, metric.WithAttributes(
+				attribute.String("repository", m.Repository),
+			))
+		}
+	}
+
+	// 7. DAG Parse Durations
+	parseDurations, err := c.client.GetDagParseDurations(ctx)
+	if err != nil {
+		c.logger.Error("Failed to scrape DAG parse durations", zap.Error(err))
+		success = false
+	} else {
+		for _, m := range parseDurations {
+			c.dagParseDurationAvg.Record(ctx, m.Duration, metric.WithAttributes(
+				attribute.String("repository", m.Repository),
+			))
+		}
+	}
+
+	// 8. Pool Metrics
+	poolMetrics, err := c.client.GetPoolMetrics(ctx)
+	if err != nil {
+		c.logger.Error("Failed to scrape pool metrics", zap.Error(err))
+		success = false
+	} else {
+		for _, m := range poolMetrics {
+			c.poolCapacityTotal.Record(ctx, int64(m.TotalSlots), metric.WithAttributes(
+				attribute.String("pool", m.Pool),
+			))
+			c.poolCapacityUsed.Record(ctx, int64(m.UsedSlots), metric.WithAttributes(
+				attribute.String("pool", m.Pool),
+			))
+		}
+	}
+
+	// 9. Import Errors
+	importErrors, err := c.client.GetImportErrors(ctx)
+	if err != nil {
+		c.logger.Error("Failed to scrape import errors", zap.Error(err))
+		success = false
+	} else {
+		for _, m := range importErrors {
+			c.dagImportErrors.Record(ctx, int64(m.Count), metric.WithAttributes(
+				attribute.String("repository", m.Repository),
+			))
+		}
+	}
+
+	// 10. Zombie Tasks
+	zombieTasks, err := c.client.GetZombieTasks(ctx)
+	if err != nil {
+		c.logger.Error("Failed to scrape zombie tasks", zap.Error(err))
+		success = false
+	} else {
+		for _, m := range zombieTasks {
+			c.zombieTasks.Record(ctx, int64(m.Count), metric.WithAttributes(
 				attribute.String("repository", m.Repository),
 			))
 		}
