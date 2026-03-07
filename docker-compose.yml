@@ -57,6 +57,7 @@ services:
       AIRFLOW__CORE__FERNET_KEY: "7SYEnqTqzAwyJ9aEn1_yg5aAck0NpvbIrtdOy28RwQw="
       _PIP_ADDITIONAL_REQUIREMENTS: apache-airflow-providers-fab>=3.1.0
       AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'false'
     ports:
       - "8081:8080"
     volumes:

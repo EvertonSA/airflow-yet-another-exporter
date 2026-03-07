@@ -650,6 +650,272 @@
           }
         }
       ]
+    },
+    {
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 40
+      },
+      "id": 200,
+      "title": "Airflow Scheduler & Worker Health (SRE Additions)",
+      "type": "row",
+      "collapsed": false
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "color": {
+            "mode": "palette-classic"
+          }
+        }
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 0,
+        "y": 41
+      },
+      "id": 201,
+      "targets": [
+        {
+          "expr": "max by (repository) (airflow_dag_parse_duration_seconds)",
+          "refId": "A",
+          "legendFormat": "{{repository}}"
+        }
+      ],
+      "title": "DAG Parse Duration (Average)",
+      "description": "Crucial for Latency. Slower parse times (>2-3s) will delay the scheduler loops.",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 41
+      },
+      "id": 202,
+      "targets": [
+        {
+          "expr": "sum by (pool) (airflow_pool_capacity_used)",
+          "refId": "A",
+          "legendFormat": "{{pool}} Used"
+        },
+        {
+          "expr": "sum by (pool) (airflow_pool_capacity_total)",
+          "refId": "B",
+          "legendFormat": "{{pool}} Total"
+        }
+      ],
+      "title": "Pool Saturation",
+      "description": "Crucial for Saturation. If used = total, tasks will queue and starve.",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          }
+        }
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 0,
+        "y": 48
+      },
+      "id": 203,
+      "targets": [
+        {
+          "expr": "sum(airflow_dag_import_errors_total)",
+          "refId": "A",
+          "legendFormat": "Global Import Errors"
+        }
+      ],
+      "title": "DAG Import Errors",
+      "description": "Critical Errors signal. A DAG failed to parse and is likely missing from Airflow.",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 5
+              }
+            ]
+          }
+        }
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 6,
+        "y": 48
+      },
+      "id": 204,
+      "targets": [
+        {
+          "expr": "sum(airflow_zombie_tasks_total)",
+          "refId": "A",
+          "legendFormat": "Zombie Tasks"
+        }
+      ],
+      "title": "Zombie Tasks Detection",
+      "description": "Indicates unstable workers failing to report task failures back to the database.",
+      "type": "stat"
+    },
+    {
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 25
+      },
+      "id": 150,
+      "title": "Latency Deep Dive",
+      "type": "row",
+      "collapsed": false
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "color": {
+            "mode": "palette-classic"
+          }
+        }
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 0,
+        "y": 26
+      },
+      "id": 151,
+      "targets": [
+        {
+          "expr": "airflow_dag_run_duration_avg_24h",
+          "legendFormat": "{{repository}} DAG Time",
+          "refId": "A"
+        }
+      ],
+      "title": "End-to-End Latency (DAG Run)",
+      "description": "How long complete DAG executions are taking.",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "color": {
+            "mode": "palette-classic"
+          }
+        }
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 8,
+        "y": 26
+      },
+      "id": 152,
+      "targets": [
+        {
+          "expr": "airflow_task_queue_wait_duration_avg_24h",
+          "legendFormat": "{{repository}} Queue Wait",
+          "refId": "A"
+        }
+      ],
+      "title": "Scheduling Latency (Queue Wait)",
+      "description": "How long tasks sit in the queue waiting for workers. High values = starvation.",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "color": {
+            "mode": "palette-classic"
+          }
+        }
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 16,
+        "y": 26
+      },
+      "id": 153,
+      "targets": [
+        {
+          "expr": "airflow_dag_parse_duration_seconds",
+          "legendFormat": "{{repository}} Parse Time",
+          "refId": "A"
+        }
+      ],
+      "title": "Parsing Latency (Scheduler Load)",
+      "description": "How long it takes the scheduler to parse Python files. Critical for scheduling speed.",
+      "type": "timeseries"
     }
   ]
 }
