@@ -3,12 +3,28 @@ package db
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-func Connect(ctx context.Context, connString string) (*pgxpool.Pool, error) {
+// BuildConnString constructs a Postgres connection string from individual parameters.
+// Password and username are properly URL-encoded via url.UserPassword.
+func BuildConnString(host string, port int, name, user, password string) string {
+	u := &url.URL{
+		Scheme:   "postgres",
+		Host:     fmt.Sprintf("%s:%d", host, port),
+		Path:     name,
+		RawQuery: "sslmode=require",
+		User:     url.UserPassword(user, password),
+	}
+	return u.String()
+}
+
+// Connect builds the DSN from parameters and connects using pgxpool.
+func Connect(ctx context.Context, host string, port int, name, user, password string) (*pgxpool.Pool, error) {
+	connString := BuildConnString(host, port, name, user, password)
 	config, err := pgxpool.ParseConfig(connString)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse connection string: %w", err)

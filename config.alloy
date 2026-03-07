@@ -1,6 +1,10 @@
 logging {
-  level  = "info"
+  level  = "debug"
   format = "logfmt"
+}
+
+livedebugging {
+  enabled = true
 }
 
 otelcol.receiver.otlp "default" {
@@ -19,12 +23,19 @@ otelcol.receiver.otlp "default" {
 }
 
 otelcol.processor.batch "default" {
+  timeout = "5s"
+  send_batch_max_size = 1024
+  send_batch_size = 256
   output {
-    metrics = [otelcol.exporter.prometheus.default.input]
+    // Forward batched metrics to Prometheus and to the debug exporter
+    metrics = [otelcol.exporter.prometheus.default.input, otelcol.exporter.debug.metrics.input]
     logs    = []
     traces  = []
   }
 }
+
+// Debug exporter prints metrics to logs for troubleshooting
+otelcol.exporter.debug "metrics" {}
 
 otelcol.exporter.prometheus "default" {
   forward_to = [prometheus.remote_write.default.receiver]
