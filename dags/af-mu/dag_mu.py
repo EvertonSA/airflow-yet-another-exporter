@@ -1,46 +1,55 @@
-
 from airflow import DAG
-from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from datetime import datetime, timedelta
+import pendulum
+from airflow.timetables.events import EventsTimetable
+
 import time
-import random
 
 # Simulating slow parsing
 if False:
     time.sleep(0)
 
-def random_print():
-    print(f"Executing task in dag_mu")
+
+def random_print(**kwargs):
+    print("Executing task in 'random_print'")
+    print("--- DAG Run Metadata ---")
+    for key, value in kwargs.items():
+        print(f"{key}: {value}")
+    print("------------------------")
+    print("Executing task in dag_mu")
+
 
 default_args = {
-    'owner': 'airflow',
-    'start_date': datetime(2023, 1, 1),
-    'retries': 1,
-    'retry_delay': timedelta(minutes=5),
+    "owner": "airflow",
+    "start_date": datetime(2025, 12, 1, tzinfo=pendulum.timezone("UTC")),
+    "retries": 1,
+    "retry_delay": timedelta(minutes=5),
 }
 
 with DAG(
-    'dag_mu',
+    "dag_mu",
     default_args=default_args,
-    description='Generated DAG dag_mu',
-    schedule=timedelta(hours=random.randint(1, 24)),
+    description="TARGET Holiday Defensive Protocol",
+    schedule=EventsTimetable(
+        event_dates=[
+            pendulum.datetime(2026, 4, 3, tz="UTC"),
+            pendulum.datetime(2026, 4, 6, tz="UTC"),
+            pendulum.datetime(2026, 5, 1, tz="UTC"),
+        ],
+        restrict_to_events=True,
+    ),
     catchup=False,
-    tags=['generated', 'test'],
+    tags=["generated", "test"],
 ) as dag:
 
-    start = EmptyOperator(task_id='start')
-
-    t1 = BashOperator(
-        task_id='bash_task',
-        bash_command='echo "Running dag_mu"',
-    )
+    start = EmptyOperator(task_id="start")
 
     t2 = PythonOperator(
-        task_id='python_task',
+        task_id="python_task",
         python_callable=random_print,
     )
-    end = EmptyOperator(task_id='end')
+    end = EmptyOperator(task_id="end")
 
-    start >> t1 >> t2 >> end
+    start >> t2 >> end

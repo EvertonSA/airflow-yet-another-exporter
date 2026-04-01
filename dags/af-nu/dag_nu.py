@@ -1,46 +1,49 @@
-
 from airflow import DAG
-from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from datetime import datetime, timedelta
+import pendulum
+from airflow.sdk.definitions.asset import Asset
+
 import time
-import random
 
 # Simulating slow parsing
-if False:
-    time.sleep(0)
+if True:
+    time.sleep(1.2)  # Parsing latency
 
-def random_print():
-    print(f"Executing task in dag_nu")
+
+def random_print(**kwargs):
+    print("Executing task in 'random_print'")
+    print("--- DAG Run Metadata ---")
+    for key, value in kwargs.items():
+        print(f"{key}: {value}")
+    print("------------------------")
+    print("Executing task in dag_nu")
+
 
 default_args = {
-    'owner': 'airflow',
-    'start_date': datetime(2023, 1, 1),
-    'retries': 1,
-    'retry_delay': timedelta(minutes=5),
+    "owner": "airflow",
+    "start_date": datetime(2025, 12, 1, tzinfo=pendulum.timezone("UTC")),
+    "retries": 1,
+    "retry_delay": timedelta(minutes=5),
 }
 
 with DAG(
-    'dag_nu',
+    "dag_nu",
     default_args=default_args,
-    description='Generated DAG dag_nu',
-    schedule=timedelta(hours=random.randint(1, 24)),
+    description="Generated DAG dag_nu",
+    schedule="@daily",
     catchup=False,
-    tags=['generated', 'test'],
+    tags=["generated", "test"],
 ) as dag:
 
-    start = EmptyOperator(task_id='start')
-
-    t1 = BashOperator(
-        task_id='bash_task',
-        bash_command='echo "Running dag_nu"',
-    )
+    start = EmptyOperator(task_id="start")
 
     t2 = PythonOperator(
-        task_id='python_task',
+        task_id="python_task",
         python_callable=random_print,
+        outlets=[Asset("asset_from_dag_nu")],
     )
-    end = EmptyOperator(task_id='end')
+    end = EmptyOperator(task_id="end")
 
-    start >> t1 >> t2 >> end
+    start >> t2 >> end

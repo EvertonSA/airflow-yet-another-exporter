@@ -1,3 +1,7 @@
 .agent/skills/golang/SKILL.md
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
 dags/__pycache__/management_backfill_dag.cpython-310.pyc
 bin/airflow-exporter

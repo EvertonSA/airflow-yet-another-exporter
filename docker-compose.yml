@@ -33,6 +33,8 @@ services:
       - AIRFLOW__CORE__AUTH_MANAGER=airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
       - AIRFLOW__API__AUTH_BACKENDS=airflow.providers.fab.auth_manager.api.auth.backend.basic_auth
       - _PIP_ADDITIONAL_REQUIREMENTS=apache-airflow-providers-fab>=3.1.0
+    volumes:
+      - /home/everton/github/airflow/providers/grafana:/opt/grafana-provider:ro
     entrypoint: /bin/bash
     command: -c "airflow db migrate && airflow users create --username admin --firstname Admin --lastname User --role Admin --email admin@example.com --password admin"
     depends_on:
@@ -54,14 +56,18 @@ services:
       AIRFLOW__API__AUTH_JWT_SECRET: "super-secret-jwt-token-key-change-me"
       AIRFLOW__SECRET_KEY: "super-secret-key-change-me"
       AIRFLOW__WEBSERVER__SECRET_KEY: "super-secret-key-change-me"
-      AIRFLOW__CORE__FERNET_KEY: "7SYEnqTqzAwyJ9aEn1_yg5aAck0NpvbIrtdOy28RwQw="
       _PIP_ADDITIONAL_REQUIREMENTS: apache-airflow-providers-fab>=3.1.0
+      AIRFLOW__LOGGING__REMOTE_LOGGING: 'true'
+      AIRFLOW__LOGGING__LOGGING_CONFIG_CLASS: 'custom_logging_config.LOGGING_CONFIG'
+      PYTHONPATH: '/opt/airflow/config:/opt/grafana-provider/src'
       AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
       AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'false'
     ports:
       - "8081:8080"
     volumes:
       - ./dags:/opt/airflow/dags
+      - /home/everton/github/airflow/providers/grafana:/opt/grafana-provider:ro
+      - ./config:/opt/airflow/config:ro
     command: airflow api-server
     depends_on:
       airflow-init:
@@ -72,6 +78,8 @@ services:
     environment: *airflow-env
     volumes:
       - ./dags:/opt/airflow/dags
+      - /home/everton/github/airflow/providers/grafana:/opt/grafana-provider:ro
+      - ./config:/opt/airflow/config:ro
     command: airflow scheduler
     depends_on:
       airflow-init:
@@ -82,6 +90,8 @@ services:
     environment: *airflow-env
     volumes:
       - ./dags:/opt/airflow/dags
+      - /home/everton/github/airflow/providers/grafana:/opt/grafana-provider:ro
+      - ./config:/opt/airflow/config:ro
     command: airflow triggerer
     depends_on:
       airflow-init:
@@ -92,6 +102,8 @@ services:
     environment: *airflow-env
     volumes:
       - ./dags:/opt/airflow/dags
+      - /home/everton/github/airflow/providers/grafana:/opt/grafana-provider:ro
+      - ./config:/opt/airflow/config:ro
     command: airflow dag-processor
     depends_on:
       airflow-init:
@@ -104,6 +116,8 @@ services:
       AIRFLOW__CORE__EXECUTION_API_SERVER_URL: http://airflow-api-server:8080/execution
     volumes:
       - ./dags:/opt/airflow/dags
+      - /home/everton/github/airflow/providers/grafana:/opt/grafana-provider:ro
+      - ./config:/opt/airflow/config:ro
     command: airflow celery worker
     depends_on:
       airflow-init:
@@ -156,6 +170,12 @@ services:
     ports:
       - "9090:9090"
 
+  loki:
+    image: grafana/loki:latest
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+
   grafana:
     image: grafana/grafana:latest
     environment:
@@ -169,6 +189,8 @@ services:
       - "3000:3000"
     depends_on:
       prometheus:
+        condition: service_started
+      loki:
         condition: service_started
 
 networks:
