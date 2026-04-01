@@ -32,7 +32,7 @@ services:
       - AIRFLOW__CELERY__RESULT_BACKEND=db+postgresql://airflow:airflow_password@postgres/airflow
       - AIRFLOW__CORE__AUTH_MANAGER=airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
       - AIRFLOW__API__AUTH_BACKENDS=airflow.providers.fab.auth_manager.api.auth.backend.basic_auth
-      - _PIP_ADDITIONAL_REQUIREMENTS=apache-airflow-providers-fab>=3.1.0 /opt/grafana-provider
+      - _PIP_ADDITIONAL_REQUIREMENTS=apache-airflow-providers-fab>=3.1.0
     volumes:
       - /home/everton/github/airflow/providers/grafana:/opt/grafana-provider:ro
     entrypoint: /bin/bash
@@ -56,11 +56,10 @@ services:
       AIRFLOW__API__AUTH_JWT_SECRET: "super-secret-jwt-token-key-change-me"
       AIRFLOW__SECRET_KEY: "super-secret-key-change-me"
       AIRFLOW__WEBSERVER__SECRET_KEY: "super-secret-key-change-me"
-      AIRFLOW__CORE__FERNET_KEY: "7SYEnqTqzAwyJ9aEn1_yg5aAck0NpvbIrtdOy28RwQw="
-      _PIP_ADDITIONAL_REQUIREMENTS: apache-airflow-providers-fab>=3.1.0 /opt/grafana-provider
+      _PIP_ADDITIONAL_REQUIREMENTS: apache-airflow-providers-fab>=3.1.0
       AIRFLOW__LOGGING__REMOTE_LOGGING: 'true'
       AIRFLOW__LOGGING__LOGGING_CONFIG_CLASS: 'custom_logging_config.LOGGING_CONFIG'
-      PYTHONPATH: '/opt/airflow/config'
+      PYTHONPATH: '/opt/airflow/config:/opt/grafana-provider/src'
       AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
       AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'false'
     ports:
