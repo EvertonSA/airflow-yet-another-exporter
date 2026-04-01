@@ -19,6 +19,13 @@ type ServerConfig struct {
 }
 
 type DatabaseConfig struct {
+	// Use individual parameters for DB configuration
+	Host     string `mapstructure:"host"`
+	Port     int    `mapstructure:"port"`
+	Name     string `mapstructure:"name"`
+	User     string `mapstructure:"user"`
+	Password string `mapstructure:"password"`
+	// Keep connection string optional for backward compatibility (ignored if individual params are used)
 	ConnectionString string `mapstructure:"connection_string"`
 }
 
@@ -40,8 +47,13 @@ func Load() (*Config, error) {
 	// Defaults
 	v.SetDefault("server.port", "8080")
 	v.SetDefault("log.level", "info")
-	v.SetDefault("otel.endpoint", "localhost:4317")
-	v.SetDefault("database.connection_string", "") // Required for Viper to pick up env var for nested struct
+	v.SetDefault("otel.endpoint", "127.0.0.1:4317")
+	// Database defaults (parameter-by-parameter)
+	v.SetDefault("database.host", "localhost")
+	v.SetDefault("database.port", 5433)
+	v.SetDefault("database.name", "airflow")
+	v.SetDefault("database.user", "airflow")
+	v.SetDefault("database.password", "airflow")
 	v.SetDefault("scrape.interval", "30s")
 
 	// Environment Variables

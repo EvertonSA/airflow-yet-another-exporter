@@ -57,7 +57,14 @@ func runServer() {
 	logger := telemetry.InitLogger(cfg.Log.Level)
 	defer logger.Sync()
 
-	logger.Info("Starting Airflow Exporter", zap.Any("config", cfg))
+	// Obfuscate sensitive fields before logging
+	safeCfg := *cfg
+	safeCfg.Database.Password = "****"
+	if safeCfg.Database.ConnectionString != "" {
+		// Optionally mask any password within connection string
+		safeCfg.Database.ConnectionString = "***redacted***"
+	}
+	logger.Info("Starting Airflow Exporter", zap.Any("config", safeCfg))
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -67,6 +74,11 @@ func runServer() {
 	if err != nil {
 		logger.Fatal("Failed to init OTel", zap.Error(err))
 	}
+	// Check OTLP connectivity early
+	if err := telemetry.CheckOTel(ctx, 5*time.Second); err != nil {
+		logger.Fatal("OTel connectivity check failed", zap.Error(err))
+	}
+	logger.Info("OTLP connectivity check succeeded", zap.String("endpoint", cfg.OTel.Endpoint))
 	defer func() {
 		if err := shutdownOTel(ctx); err != nil {
 			logger.Error("Failed to shutdown OTel", zap.Error(err))
@@ -74,7 +86,7 @@ func runServer() {
 	}()
 
 	// 4. Database
-	dbPool, err := db.Connect(ctx, cfg.Database.ConnectionString)
+	dbPool, err := db.Connect(ctx, cfg.Database.Host, cfg.Database.Port, cfg.Database.Name, cfg.Database.User, cfg.Database.Password)
 	if err != nil {
 		// Just log error but don't crash yet, maybe DB comes up later?
 		// Actually for an exporter it's better to crash or handle retry.
@@ -82,6 +94,21 @@ func runServer() {
 		logger.Fatal("Failed to connect to DB", zap.Error(err))
 	}
 	defer dbPool.Close()
+
+	// Check DB connectivity early: SELECT 1 with short timeout
+	{
+		chkCtx, chkCancel := context.WithTimeout(ctx, 5*time.Second)
+		defer chkCancel()
+		row := dbPool.QueryRow(chkCtx, "SELECT 1")
+		var one int
+		if err := row.Scan(&one); err != nil || one != 1 {
+			logger.Fatal("Database connectivity check failed", zap.Error(err))
+		}
+		logger.Info("Database connectivity check succeeded",
+			zap.String("host", cfg.Database.Host),
+			zap.Int("port", cfg.Database.Port),
+			zap.String("db", cfg.Database.Name))
+	}
 
 	// 5. Collector
 	airflowClient := airflow.NewClient(dbPool)
@@ -111,6 +138,12 @@ func runServer() {
 	e.GET("/health", func(c echo.Context) error {
 		return c.JSON(http.StatusOK, map[string]string{"status": "ok"})
 	})
+
+	// // Force an immediate scrape
+	// e.POST("/scrape", func(c echo.Context) error {
+	// 	col.Scrape(ctx)
+	// 	return c.JSON(http.StatusOK, map[string]string{"status": "scrape_triggered"})
+	// })
 
 	// 7. Start Server with Graceful Shutdown
 	go func() {
