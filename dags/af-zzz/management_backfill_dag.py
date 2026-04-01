@@ -86,7 +86,12 @@ def trigger_backfill(dag_id: str):
     # Ensure our Celery workers aren't completely overwhelmed (optional limit)
     max_active_tasks=20,
 )
-def management_backfill_dag():
+def management_backfill_dag(**kwargs):
+    print("Executing task in 'management_backfill_dag'")
+    print("--- DAG Run Metadata ---")
+    for key, value in kwargs.items():
+        print(f"{key}: {value}")
+    print("------------------------")
 
     # 1. Fetch the list of all DAG IDs
     dag_ids = get_all_dag_ids()

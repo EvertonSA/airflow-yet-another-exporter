@@ -1,5 +1,4 @@
 from airflow.decorators import dag, task  # pylint: disable=no-name-in-module
-from airflow.providers.standard.operators.bash import BashOperator
 from datetime import datetime, timedelta
 import pendulum
 from airflow.sdk.definitions.asset import Asset
@@ -36,22 +35,21 @@ def create_dag(dag_id, default_args):
     def generated_dag():
 
         @task(task_id="python_task", outlets=[Asset(f"dynamic_asset_{dag_id}")])
-        def random_print():
-            print(f"Executing task in {dag_id}")
-
-        t1 = BashOperator(
-            task_id="bash_task",
-            bash_command=f'echo "Running {dag_id}"',
-        )
+        def random_print(**kwargs):
+            print(f"Executing task in '{dag_id}'")
+            print("--- DAG Run Metadata ---")
+            for key, value in kwargs.items():
+                print(f"{key}: {value}")
+            print("------------------------")
 
         # Define workflow
-        t1 >> random_print()
+        random_print()
 
     return generated_dag()
 
 
 # Dynamically register 100 DAGs
-for i in range(100):
+for i in range(1):
     dag_id = f"valkyrie_{i}"
     # Assign the DAG object to a global variable so Airflow picks it up
     globals()[dag_id] = create_dag(dag_id=dag_id, default_args=default_args)

@@ -1,5 +1,4 @@
-from airflow.decorators import dag, task  # pylint: disable=no-name-in-module
-from airflow.providers.standard.operators.bash import BashOperator
+from airflow.decorators import dag  # pylint: disable=no-name-in-module
 from datetime import datetime, timedelta
 import pendulum
 
@@ -28,21 +27,14 @@ default_args = {
     catchup=False,
     tags=["example", "metrics"],
 )
-def example_metrics_dag():
-
-    t1 = BashOperator(
-        task_id="print_date",
-        bash_command="date",
-    )
-
-    t2 = BashOperator(
-        task_id="sleep",
-        bash_command="sleep 5",
-    )
+def example_metrics_dag(**kwargs):
+    print("Executing task in 'example_metrics_dag'")
+    print("--- DAG Run Metadata ---")
+    for key, value in kwargs.items():
+        print(f"{key}: {value}")
+    print("------------------------")
 
     # t3 = random_failure()
-
-    t1 >> t2
 
 
 example_metrics_dag()

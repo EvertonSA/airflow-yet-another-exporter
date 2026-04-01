@@ -1,5 +1,4 @@
 from airflow import DAG
-from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from datetime import datetime, timedelta
@@ -14,7 +13,12 @@ if True:
     time.sleep(1.2)  # Parsing latency
 
 
-def random_print():
+def random_print(**kwargs):
+    print("Executing task in 'random_print'")
+    print("--- DAG Run Metadata ---")
+    for key, value in kwargs.items():
+        print(f"{key}: {value}")
+    print("------------------------")
     print("Executing task in dag_beta")
 
 
@@ -36,11 +40,6 @@ with DAG(
 
     start = EmptyOperator(task_id="start")
 
-    t1 = BashOperator(
-        task_id="bash_task",
-        bash_command='echo "Running dag_beta"',
-    )
-
     t2 = PythonOperator(
         task_id="python_task",
         python_callable=random_print,
@@ -48,4 +47,4 @@ with DAG(
     )
     end = EmptyOperator(task_id="end")
 
-    start >> t1 >> t2 >> end
+    start >> t2 >> end
