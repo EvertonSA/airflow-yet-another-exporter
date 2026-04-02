@@ -1,10 +1,10 @@
 module github.com/everton/airflow-exporter
 
-go 1.24.0
+go 1.25.0
 
 require (
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.27.3 // indirect; Pin to avoid Go 1.24 requirement
-	github.com/jackc/pgx/v5 v5.8.0
+	github.com/jackc/pgx/v5 v5.9.1
 	github.com/labstack/echo/v4 v4.14.0
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/viper v1.21.0
