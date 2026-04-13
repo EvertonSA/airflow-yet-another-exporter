@@ -5,7 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "apache-airflow>=2.8.0",
+    "apache-airflow>=3.2.0",
     "holidays>=0.92",
     "pendulum>=3.2.0",
 ]
