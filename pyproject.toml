@@ -6,7 +6,7 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "apache-airflow>=2.8.0",
-    "holidays>=0.92",
+    "holidays>=0.96",
     "pendulum>=3.2.0",
 ]
 
