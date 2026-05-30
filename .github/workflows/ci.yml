@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  test:
+    name: Lint, Unit & Integration Tests
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: airflow
+          POSTGRES_PASSWORD: airflow_password
+          POSTGRES_DB: airflow
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+          cache: true
+
+      - name: Install Dependencies
+        run: go mod download
+
+      - name: Run Linters
+        run: |
+          # Use golangci-lint-action or run via go
+          go run github.com/golangci/golangci-lint/cmd/golangci-lint@v1.61.0 run ./...
+
+      - name: Run Tests (with Integration)
+        env:
+          TEST_DATABASE_URL: postgres://airflow:airflow_password@localhost:5432/airflow?sslmode=disable
+        run: go test -v -race ./...
