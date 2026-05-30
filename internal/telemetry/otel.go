@@ -55,7 +55,7 @@ func InitOTel(ctx context.Context, serviceName string, otlpEndpoint string) (fun
 
 	grpcOpts := []otlpmetricgrpc.Option{
 		otlpmetricgrpc.WithDialOption(grpc.WithTransportCredentials(insecure.NewCredentials())),
-		otlpmetricgrpc.WithDialOption(grpc.WithBlock()),
+		otlpmetricgrpc.WithDialOption(grpc.WithBlock()), //nolint:staticcheck
 	}
 	if otlpEndpoint != "" {
 		grpcOpts = append(grpcOpts, otlpmetricgrpc.WithEndpoint(otlpEndpoint))

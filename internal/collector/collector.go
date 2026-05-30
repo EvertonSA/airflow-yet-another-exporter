@@ -25,11 +25,11 @@ type Collector struct {
 	taskDurationAvg24h   metric.Float64Gauge
 	taskQueueWaitAvg24h  metric.Float64Gauge
 	dagActive            metric.Int64Gauge
-	dagParseDurationAvg metric.Float64Gauge
-	poolCapacityTotal   metric.Int64Gauge
-	poolCapacityUsed    metric.Int64Gauge
-	dagImportErrors     metric.Int64Gauge
-	zombieTasks         metric.Int64Gauge
+	dagParseDurationAvg  metric.Float64Gauge
+	poolCapacityTotal    metric.Int64Gauge
+	poolCapacityUsed     metric.Int64Gauge
+	dagImportErrors      metric.Int64Gauge
+	zombieTasks          metric.Int64Gauge
 
 	// State tracking
 	dagRunStateKeys       map[attribute.Set]struct{}
