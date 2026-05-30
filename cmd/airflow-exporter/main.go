@@ -29,7 +29,7 @@ var rootCmd = &cobra.Command{
 var serveCmd = &cobra.Command{
 	Use:   "serve",
 	Short: "Start the exporter server",
-	Run: func(cmd *cobra.Command, args []string) {
+	Run: func(_ *cobra.Command, _ []string) {
 		runServer()
 	},
 }
@@ -55,7 +55,9 @@ func runServer() {
 
 	// 2. Logger
 	logger := telemetry.InitLogger(cfg.Log.Level)
-	defer logger.Sync()
+	defer func() {
+		_ = logger.Sync()
+	}()
 
 	// Obfuscate sensitive fields before logging
 	safeCfg := *cfg
@@ -75,13 +77,13 @@ func runServer() {
 		logger.Fatal("Failed to init OTel", zap.Error(err))
 	}
 	// Check OTLP connectivity early
-	if err := telemetry.CheckOTel(ctx, 5*time.Second); err != nil {
-		logger.Fatal("OTel connectivity check failed", zap.Error(err))
+	if otelErr := telemetry.CheckOTel(ctx, 5*time.Second); otelErr != nil {
+		logger.Fatal("OTel connectivity check failed", zap.Error(otelErr))
 	}
 	logger.Info("OTLP connectivity check succeeded", zap.String("endpoint", cfg.OTel.Endpoint))
 	defer func() {
-		if err := shutdownOTel(ctx); err != nil {
-			logger.Error("Failed to shutdown OTel", zap.Error(err))
+		if shutdownErr := shutdownOTel(ctx); shutdownErr != nil {
+			logger.Error("Failed to shutdown OTel", zap.Error(shutdownErr))
 		}
 	}()
 
@@ -101,8 +103,8 @@ func runServer() {
 		defer chkCancel()
 		row := dbPool.QueryRow(chkCtx, "SELECT 1")
 		var one int
-		if err := row.Scan(&one); err != nil || one != 1 {
-			logger.Fatal("Database connectivity check failed", zap.Error(err))
+		if dbErr := row.Scan(&one); dbErr != nil || one != 1 {
+			logger.Fatal("Database connectivity check failed", zap.Error(dbErr))
 		}
 		logger.Info("Database connectivity check succeeded",
 			zap.String("host", cfg.Database.Host),
@@ -131,7 +133,7 @@ func runServer() {
 	e.HideBanner = true
 	e.Use(middleware.Recover())
 	e.Use(middleware.RequestID())
-	e.Use(middleware.LoggerWithConfig(middleware.LoggerConfig{
+	e.Use(middleware.LoggerWithConfig(middleware.LoggerConfig{ //nolint:staticcheck
 		Format: `{"time":"${time_rfc3339}","remote_ip":"${remote_ip}","host":"${host}","method":"${method}","uri":"${uri}","status":${status},"error":"${error}"}` + "\n",
 	}))
 

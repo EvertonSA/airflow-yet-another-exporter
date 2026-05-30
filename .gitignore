@@ -5,3 +5,4 @@ __pycache__/
 *$py.class
 dags/__pycache__/management_backfill_dag.cpython-310.pyc
 bin/airflow-exporter
+logs/*

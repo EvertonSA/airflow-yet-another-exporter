@@ -1,5 +1,5 @@
 # Makefile
-.PHONY: all build run test lint docker-build help
+.PHONY: all build run test test-integration lint docker-build help
 
 BINARY_NAME=airflow-exporter
 DOCKER_IMAGE=airflow-exporter:latest
@@ -11,7 +11,7 @@ help:
 	@echo "Usage: make [target]"
 	@echo ""
 	@echo "Targets:"
-	@awk '/^[a-zA-Z\-\_0-9]+:/ { \
+	@awk '/^[a-zA-Z\\-\\_0-9]+:/ { \
 		helpMessage = match(lastLine, /^## (.*)/); \
 		if (helpMessage) { \
 			helpCommand = substr($$1, 0, index($$1, ":")-1); \
@@ -31,15 +31,20 @@ run:
 	@echo "Running $(BINARY_NAME)..."
 	go run ./cmd/airflow-exporter serve
 
-## Test: Run unit tests
+## Test: Run tests (gracefully skips DB integration tests if TEST_DATABASE_URL is not set)
 test:
 	@echo "Running tests..."
 	go test -v -race ./...
 
+## Test Integration: Run database integration tests using local Docker Compose postgres
+test-integration:
+	@echo "Running integration tests against localhost PostgreSQL..."
+	TEST_DATABASE_URL="postgres://airflow:airflow_password@localhost:5432/airflow?sslmode=disable" go test -v -run TestQueriesIntegration ./internal/airflow/...
+
 ## Lint: Run linters
 lint:
 	@echo "Running linters..."
-	go run github.com/golangci/golangci-lint/cmd/golangci-lint@v1.61.0 run ./...
+	go run github.com/golangci/golangci-lint/cmd/golangci-lint@v1.64.5 run ./...
 
 ## Docker Build: Build the docker image
 docker-build:

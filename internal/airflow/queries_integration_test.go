@@ -30,7 +30,7 @@ func TestQueriesIntegration(t *testing.T) {
 	}
 
 	// 1. Setup mock database tables and insert mock data
-	cleanup := setupTestSchemaAndData(t, ctx, pool)
+	cleanup := setupTestSchemaAndData(ctx, t, pool)
 	defer cleanup()
 
 	// 2. Initialize the Airflow Client under test
@@ -263,7 +263,7 @@ func TestQueriesIntegration(t *testing.T) {
 	})
 }
 
-func setupTestSchemaAndData(t *testing.T, ctx context.Context, pool *pgxpool.Pool) func() {
+func setupTestSchemaAndData(ctx context.Context, t *testing.T, pool *pgxpool.Pool) func() {
 	// Drop existing tables to ensure clean state
 	tables := []string{"import_error", "task_instance", "dag_run", "dag", "slot_pool"}
 	for _, table := range tables {
@@ -321,7 +321,7 @@ func setupTestSchemaAndData(t *testing.T, ctx context.Context, pool *pgxpool.Poo
 	}
 
 	// Insert mock data
-	now := time.Now()
+	now := time.Now().UTC()
 
 	// 1. Slot pools
 	_, err := pool.Exec(ctx, "INSERT INTO slot_pool (pool, slots) VALUES ($1, $2)", "test_pool", 10)
@@ -401,7 +401,7 @@ func setupTestSchemaAndData(t *testing.T, ctx context.Context, pool *pgxpool.Poo
 	// Return cleanup function
 	return func() {
 		for _, table := range tables {
-			pool.Exec(ctx, "DROP TABLE IF EXISTS "+table+" CASCADE")
+			_, _ = pool.Exec(ctx, "DROP TABLE IF EXISTS "+table+" CASCADE")
 		}
 	}
 }
